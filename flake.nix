@@ -21,7 +21,7 @@
       {
         devShells.default = mkMoldShell {
           buildInputs = [
-            (rust-bin.stable.latest.default.override { extensions = [ "rust-src" "rust-analyzer" ]; })
+            (rust-bin.fromRustupToolchainFile ./rust-toolchain.toml)
             cmake
             bacon
             pkg-config
@@ -33,6 +33,7 @@
             systemd
             openssl
             just
+            trunk
           ];
 
           LD_LIBRARY_PATH = lib.makeLibraryPath [ 
