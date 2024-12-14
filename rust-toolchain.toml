@@ -1,4 +1,0 @@
-[toolchain]
-# channel = "nightly"
-channel = "stable"
-components = [ "llvm-tools", "rust-src", "rust-analyzer" ]
