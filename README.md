@@ -1,5 +1,5 @@
 
-# colliding_automatas
+# colliding_automata
 
 What if a 1d cellular automata was used as the input to a 2d cellular automata?
 
