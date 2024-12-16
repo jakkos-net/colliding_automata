@@ -1,10 +1,10 @@
 use bevy::{
+    ecs::system::RunSystemOnce,
     math::vec2,
     prelude::*,
     render::{
         extract_resource::{ExtractResource, ExtractResourcePlugin},
-        render_asset::RenderAssetUsages,
-        render_asset::RenderAssets,
+        render_asset::{RenderAssetUsages, RenderAssets},
         render_graph::{self, RenderGraph, RenderLabel},
         render_resource::*,
         renderer::{RenderContext, RenderDevice},
@@ -12,28 +12,65 @@ use bevy::{
         Render, RenderApp, RenderSet,
     },
 };
+use bevy_egui::{
+    egui::{self, DragValue},
+    EguiContexts, EguiPlugin,
+};
+use bevy_embedded_assets::EmbeddedAssetPlugin;
 
-const SIZE: (u32, u32) = (1200, 800);
 const WORKGROUP_SIZE: u32 = 8;
 
 fn main() {
     App::new()
-        .insert_resource(ClearColor(Color::srgb(0.5, 0.5, 0.5)))
         .add_plugins((
+            EmbeddedAssetPlugin {
+                mode: bevy_embedded_assets::PluginMode::ReplaceDefault,
+            },
             DefaultPlugins.set(ImagePlugin::default_nearest()),
+            EguiPlugin,
             GameOfLifeComputePlugin,
         ))
-        .add_systems(Startup, setup)
+        .insert_resource(ClearColor(Color::srgb(0.0, 0.0, 0.0)))
+        .init_resource::<Settings>()
+        .add_systems(Startup, setup_textures)
         .add_systems(Update, update_view)
         .add_systems(Update, flip_textures)
+        .add_systems(Update, ui)
         .run();
 }
 
-fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
+#[derive(Resource)]
+pub struct Settings {
+    pub show_menu: bool,
+    pub width: u32,
+    pub height: u32,
+    pub steps_per_sec: f32,
+    pub ca_1d: CellularAutomata1d,
+}
+
+pub struct CellularAutomata1d(pub u8);
+
+impl Default for Settings {
+    fn default() -> Self {
+        Settings {
+            show_menu: true,
+            width: 1920,
+            height: 1080,
+            steps_per_sec: 60.0,
+            ca_1d: CellularAutomata1d(0),
+        }
+    }
+}
+
+fn setup_textures(
+    mut commands: Commands,
+    mut images: ResMut<Assets<Image>>,
+    settings: Res<Settings>,
+) {
     let mut read_image = Image::new_fill(
         Extent3d {
-            width: SIZE.0,
-            height: SIZE.1,
+            width: settings.width,
+            height: settings.height,
             depth_or_array_layers: 1,
         },
         TextureDimension::D2,
@@ -44,7 +81,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     read_image.texture_descriptor.usage =
         TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
     let mut write_image = read_image.clone();
-    let idx = ((SIZE.0 / 2 - 1) * 4) as usize;
+    let idx = ((settings.width / 2 - 1) * 4) as usize;
     write_image.data[idx] = 255;
     write_image.data[idx + 1] = 255;
     write_image.data[idx + 2] = 255;
@@ -53,7 +90,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     let write_image = images.add(write_image);
 
     commands.spawn(Sprite {
-        custom_size: Some(Vec2::new(SIZE.0 as f32, SIZE.1 as f32)),
+        custom_size: Some(Vec2::new(settings.width as f32, settings.height as f32)),
         image: read_image.clone(),
         ..default()
     });
@@ -64,7 +101,6 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
         write_texture: write_image,
     });
 }
-
 struct GameOfLifeComputePlugin;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
@@ -171,9 +207,10 @@ impl render_graph::Node for GameOfLifeNode {
         if let Some(update_pipeline) = pipeline_cache.get_compute_pipeline(pipeline.update_pipeline)
         {
             pass.set_pipeline(update_pipeline);
-            pass.dispatch_workgroups(SIZE.0 / WORKGROUP_SIZE, SIZE.1 / WORKGROUP_SIZE, 1);
+            let dispatch_x = (1920 as f32 / WORKGROUP_SIZE as f32).ceil() as u32;
+            let dispatch_y = (1080 as f32 / WORKGROUP_SIZE as f32).ceil() as u32;
+            pass.dispatch_workgroups(dispatch_x, dispatch_y, 1);
         }
-
         Ok(())
     }
 }
@@ -186,10 +223,10 @@ fn update_view(
     let scale_speed = 1.0;
     let mut scale_dir = 0.0;
     if input.pressed(KeyCode::ShiftLeft) {
-        scale_dir -= 1.0;
+        scale_dir += 1.0;
     }
     if input.pressed(KeyCode::ControlLeft) {
-        scale_dir += 1.0;
+        scale_dir -= 1.0;
     }
     let scale_amount = scale_dir * scale_speed * time.delta_secs();
 
@@ -214,6 +251,7 @@ fn update_view(
         tf.translation.y += move_amount.y;
         tf.scale.x += scale_amount;
         tf.scale.y = -tf.scale.x;
+        tf.scale.y = tf.scale.y.min(0.05);
     }
 }
 
@@ -225,4 +263,39 @@ fn flip_textures(mut textures: ResMut<GameOfLifeImage>, mut query: Query<&mut Sp
     for mut sprite in query.iter_mut() {
         sprite.image = textures.read_texture.clone();
     }
+}
+
+fn ui(
+    mut contexts: EguiContexts,
+    input: Res<ButtonInput<KeyCode>>,
+    mut settings: ResMut<Settings>,
+    mut commands: Commands,
+) {
+    if input.just_pressed(KeyCode::KeyH) {
+        settings.show_menu = !settings.show_menu;
+    }
+    if !settings.show_menu {
+        return;
+    }
+    egui::Window::new("Menu").show(contexts.ctx_mut(), |ui| {
+        ui.separator();
+        ui.label("w/a/s/d: move");
+        ui.label("shift/ctrl: zoom in/out");
+        ui.label("h: toggle menu");
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.label("width:");
+            ui.add(DragValue::new(&mut settings.width));
+            ui.label("\t");
+            ui.label("height:");
+            ui.add(DragValue::new(&mut settings.height));
+        });
+        if ui.button("Apply changes and restart").clicked() {
+            commands.queue(|world: &mut World| {
+                world.run_system_once(setup_textures).ok();
+            });
+        }
+        ui.separator();
+        ui.label("Idea taken from https://www.youtube.com/watch?v=IK7nBOLYzdE")
+    });
 }
