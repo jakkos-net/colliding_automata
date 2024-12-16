@@ -28,7 +28,7 @@ jobs:
       - name: Build # build
         run: ./trunk build --release --public-url $public_url
         env:
-          public_url: "https://jakkos.net/ca_collide"
+          public_url: "https://jakkos.net/colliding_automata"
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
         with:
