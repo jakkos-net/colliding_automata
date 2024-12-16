@@ -1,4 +1,5 @@
 use bevy::{
+    core_pipeline::{bloom::Bloom, tonemapping::Tonemapping},
     ecs::system::RunSystemOnce,
     math::vec2,
     prelude::*,
@@ -32,6 +33,7 @@ fn main() {
         ))
         .insert_resource(ClearColor(Color::srgb(0.0, 0.0, 0.0)))
         .init_resource::<Settings>()
+        .add_systems(Startup, setup_cam_and_sprite)
         .add_systems(Startup, setup_textures)
         .add_systems(Update, update_view)
         .add_systems(Update, flip_textures)
@@ -89,17 +91,27 @@ fn setup_textures(
     let read_image = images.add(read_image);
     let write_image = images.add(write_image);
 
-    commands.spawn(Sprite {
-        custom_size: Some(Vec2::new(settings.width as f32, settings.height as f32)),
-        image: read_image.clone(),
-        ..default()
-    });
-    commands.spawn(Camera2d::default());
-
     commands.insert_resource(GameOfLifeImage {
         read_texture: read_image,
         write_texture: write_image,
     });
+}
+
+pub fn setup_cam_and_sprite(mut commands: Commands) {
+    commands.spawn(Sprite::default());
+    commands.spawn((
+        Camera2d::default(),
+        Camera {
+            hdr: true,
+            clear_color: Color::BLACK.into(),
+            ..Default::default()
+        },
+        Tonemapping::None,
+        Bloom {
+            intensity: 0.3,
+            ..default()
+        },
+    ));
 }
 struct GameOfLifeComputePlugin;
 
