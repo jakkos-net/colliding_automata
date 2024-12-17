@@ -1,0 +1,17 @@
+<html>
+  <head>
+  <link rel="modulepreload" href="https://jakkos.net/colliding_automata/coliding_automata-6e8acfd166107c9c.js" crossorigin=anonymous integrity="sha384-H0AKDHtte7Fk9gpndnE6xn3f25YN8AMfI8p0NFl48SMLIlhLJpQXQGo4v2PjJwfM"><link rel="preload" href="https://jakkos.net/colliding_automata/coliding_automata-6e8acfd166107c9c_bg.wasm" crossorigin=anonymous integrity="sha384-FGBqNFruraJWGjzGRCCUw8SBcjg9VW17XFrWTyPenv4nCPxXIQfeQeR6r77uoPro" as="fetch" type="application/wasm"></head>
+  <body>
+  
+<script type="module" nonce="tdm2MLdZIjepN1/ZT1st+w==">
+import init, * as bindings from 'https://jakkos.net/colliding_automata/coliding_automata-6e8acfd166107c9c.js';
+const wasm = await init({ module_or_path: 'https://jakkos.net/colliding_automata/coliding_automata-6e8acfd166107c9c_bg.wasm' });
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script></body>
+</html>
