@@ -5,7 +5,7 @@ What if a 1d cellular automata was used as the input to a 2d cellular automata?
 
 ![An image of a 1d cellular automata being used as the input to a 2d cellular automata](preview.png)
 
-[Click here for the live web version!](https://jakkos.net/colliding_automatas) 
+[Click here for the live web version!](https://jakkos.net/colliding_automata) 
 
 (Requires a browser with WebGPU support e.g. Chrome. [You can check here](https://caniuse.com/webgpu).)
 
